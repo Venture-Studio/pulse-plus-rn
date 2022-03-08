@@ -1,5 +1,6 @@
 export const APP_URLS = {
     PLACEHOLDER_IMAGE: 'https://i.stack.imgur.com/y9DpT.jpg',
+    API_URL: 'https://api.pulse.plus/'
 };
 
 export const APP_ROUTES = {

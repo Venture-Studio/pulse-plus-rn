@@ -4,6 +4,7 @@ import { User } from '../../utils/models';
 export interface UserStateProps {
     error?: string;
     user: User;
+    loading: boolean
 }
 
 export const DEFAULT_USER: User = {
@@ -16,11 +17,15 @@ export const DEFAULT_USER: User = {
 export const initialState: UserStateProps = {
     user: DEFAULT_USER,
     error: undefined,
+    loading: false
+   
 };
 
 /** **  Action Keys  *** */
 export enum TasksActionKeys {
     setUser = 'setUser',
+    setUserLoggedIn = 'setUserLoggedIn',
+    setLoading = 'setLoading'
 }
 
 /** **  Action Types  *** */

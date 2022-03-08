@@ -1,63 +1,202 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import { useNavigation } from '@react-navigation/native';
-import React, { FC, JSX, useEffect, useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
-import { RFPercentage } from 'react-native-responsive-fontsize';
-import RoundButton from '../../components/RoundButton';
-import { UserDispatchProps, withUser } from '../../contexts/user_context';
-import { UserStateProps } from '../../contexts/user_context/actionTypes';
-import { PRIMARY, WHITE } from '../../styles/colors';
-import { APP_ROUTES, APP_STRINGS } from '../../utils/constants';
-import ShouldRender from '../../utils/ShouldRender';
-import styles from './loginStyle';
+import { useNavigation } from "@react-navigation/native";
+import React, { FC, JSX, useEffect, useState, useCallback } from "react";
+import {
+  ActivityIndicator,
+  Text,
+  View,
+  Image,
+  TouchableOpacity,
+} from "react-native";
+import { RFPercentage } from "react-native-responsive-fontsize";
+import RoundButton from "../../components/RoundButton";
+import { UserDispatchProps, withUser } from "../../contexts/user_context";
+import { UserStateProps } from "../../contexts/user_context/actionTypes";
+import { PRIMARY, WHITE } from "../../styles/colors";
+import { APP_ROUTES, APP_STRINGS } from "../../utils/constants";
+import ShouldRender from "../../utils/ShouldRender";
+import styles from "./loginStyle";
+import { LogoDark, LogoLight } from "../../assets";
+import FormTextInput from "../../components/FormTextInput";
+import AppText from "../../components/AppText";
+import validator from "validator";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+type FormInputType = {
+  value: string;
+  error?: string | null;
+};
 
 interface LoginProps {
-    userActions: UserDispatchProps;
-    userState: UserStateProps;
+  userActions: UserDispatchProps;
+  userState: UserStateProps;
 }
 
-const Login: FC<LoginProps> = ({ userActions, userState }: LoginProps): JSX.Element => {
-    const [loadingData, setLoadingData] = useState<boolean>(true);
-    const { container, loginButton, textStyle } = styles;
-    const { loginUser } = userActions;
-    const { error, isLoggedIn } = userState;
+const Login: FC<LoginProps> = ({
+  userActions,
+  userState,
+}: LoginProps): JSX.Element => {
+  const [loadingData, setLoadingData] = useState<boolean>(true);
+  const {
+    container,
+    headerStyle,
+    headerLogoStyle,
+    inputContainerStyle,
+    buttonSectionContainerStyle,
+    buttonContainerStyle,
+    buttonTextStyle,
+    forgotPasswordCotainerStyle,
+    signUpButtonCotainerStyle,
+    linkButtonTextStyle,
+    normalTextStyle,
+    footerStyle,
+    footerLogoStyle,
+    footerTextStyle,
+  } = styles;
+  const { loginUser, loginWithToken } = userActions;
+  const { error, user, loading } = userState;
+  const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
-    const navigation = useNavigation();
+  const [showPassword, setShowPassword] = useState(false);
 
-    // initial useEffect
-    useEffect(() => {}, []);
+  const navigation = useNavigation();
 
-    return (
-        <View style={container}>
-            <ShouldRender if={loadingData}>
-                <ActivityIndicator animating size="large" color={WHITE} />
-            </ShouldRender>
-            <Text style={textStyle}>{APP_STRINGS.LOGIN_SCREEN_TITLE}</Text>
-            {/* Header section */}
+  const { isLoggedIn, jwtToken, refreshToken } = user;
+
+  async function checkToken(){
+    const jwt =  await AsyncStorage.getItem('jwttoken')
+    const refresh =  await AsyncStorage.getItem('reftoken')
+    console.log('jwt',jwt)
+    if(jwt && refresh){
+      loginWithToken(jwt)
+    }
+  }
+
+  // initial useEffect
+  useEffect(() => {
+    checkToken()
+  }, []);
+
+  useEffect(() => {
+    console.log("ligged", isLoggedIn);
+    if (user.isLoggedIn) {
+      AsyncStorage.setItem('jwttoken',user.jwtToken)
+      AsyncStorage.setItem('reftoken',user.refreshToken)
+      navigation.navigate(APP_ROUTES.HOME_SCREEN);
+    }
+  }, [user]);
 
 
-            {/* body section section */}
 
-            
+  const onEmailChange = useCallback(
+    (value) => {
+      setEmail(value);
+      setEmailError(null);
+    },
+    [setEmail, setEmailError]
+  );
 
-            {/* Button section */}
-            <View style={loginButton}>
-                <RoundButton
-                    title="Get Started"
-                    color={WHITE}
-                    backgroundColor={PRIMARY}
-                    borderRadius={50}
-                    onPress={() => {
-                        //TODO: replace with api call.
-                        navigation.replace(APP_ROUTES.HOME_SCREEN)
-                    }}
-                    textStyle={{ fontSize: RFPercentage(2.6), fontWeight: 'bold' }}
-                    buttonStyle={{}}
-                />
-            </View>
-            {/* footer section */}
+  const onPasswordChange = useCallback(
+    (value) => {
+      setPassword(value);
+      setPasswordError(null);
+    },
+    [setPassword, setPasswordError]
+  );
+
+  const onSubmit = useCallback(() => {
+    let currentEmailError = null;
+    let currentPasswordError = null;
+    if (validator.isEmpty(email)) {
+      currentEmailError = "Required Field";
+    } else if (!validator.isEmail(email)) {
+      currentEmailError = "Invalid Email";
+    }
+    if (validator.isEmpty(password)) {
+      currentPasswordError = "Required Field";
+    }
+    setEmailError(currentEmailError);
+    setPasswordError(currentPasswordError);
+    if (currentEmailError || currentPasswordError) {
+      return;
+    }
+    userActions.loginUser(email, password);
+  }, [email, password]);
+
+  return (
+    <View style={container}>
+      <ShouldRender if={loadingData}>
+        <ActivityIndicator animating size="large" color={WHITE} />
+      </ShouldRender>
+      {/* Header section */}
+      <View style={headerStyle}>
+        <Image source={LogoDark} style={headerLogoStyle} resizeMode="contain" />
+      </View>
+      {/* body section section */}
+      <View style={inputContainerStyle}>
+        <FormTextInput
+          onChangeText={onEmailChange}
+          value={email}
+          fullWidth
+          label="Email"
+          placeHolder="name@email.com"
+          leftIconName="mail"
+          error={emailError}
+        />
+        <FormTextInput
+          onChangeText={onPasswordChange}
+          value={password}
+          secureTextEntry={!showPassword}
+          fullWidth
+          label="Password"
+          placeHolder="Password"
+          rightButtonIconName={showPassword ? "eye" : "eye-slash"}
+          error={passwordError}
+          onRightButtonPress={() => {
+            setShowPassword(!showPassword);
+          }}
+        />
+      </View>
+      {/* Button section */}
+      <View style={buttonSectionContainerStyle}>
+        <View style={buttonContainerStyle}>
+          <RoundButton
+            textStyle={buttonTextStyle}
+            title="Login"
+            backgroundColor="#009dff"
+            borderRadius={50}
+            onPress={onSubmit}
+            loading={loading}
+          />
         </View>
-    );
+        <View style={forgotPasswordCotainerStyle}>
+          <TouchableOpacity>
+            <AppText style={linkButtonTextStyle}>Forgot Password?</AppText>
+          </TouchableOpacity>
+        </View>
+        <View style={signUpButtonCotainerStyle}>
+          <AppText style={normalTextStyle}>Not a member?</AppText>
+          <TouchableOpacity>
+            <AppText style={linkButtonTextStyle}> Sign Up</AppText>
+          </TouchableOpacity>
+        </View>
+      </View>
+      {/* footer section */}
+      <View style={footerStyle}>
+        <Image
+          source={LogoLight}
+          style={footerLogoStyle}
+          resizeMode="contain"
+        />
+        <AppText style={footerTextStyle}>
+          2021. Copyright info here. All rights reserved.
+        </AppText>
+      </View>
+    </View>
+  );
 };
 
 export default withUser(Login);
