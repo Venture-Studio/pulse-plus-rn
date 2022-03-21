@@ -11,8 +11,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: WHITE,
     flexDirection: "column",
-    // alignContent: 'center',
-    // justifyContent: 'center',
   },
   textStyle: {
     alignSelf: "center",

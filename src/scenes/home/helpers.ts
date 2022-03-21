@@ -43,6 +43,7 @@ export function FormatSleepData(data: any) {
       newObj[day].rem = 0;
     }
   });
+  console.log("Formatted Sleep", newObj)
   return newObj;
 }
 

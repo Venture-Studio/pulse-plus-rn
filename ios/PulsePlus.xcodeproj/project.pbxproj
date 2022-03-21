@@ -26,7 +26,6 @@
 		6C57AD1E620440BBAEEC43E5 /* Mulish-LightItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = D890DED6150E4342A9F5A65F /* Mulish-LightItalic.ttf */; };
 		6F30F51E8EC2403F8B7F2C67 /* Mulish-BoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 637F9D81C27640F2A62D3A3C /* Mulish-BoldItalic.ttf */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
-		8443A0D327D9072B0029836B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8443A0D227D9072A0029836B /* Assets.xcassets */; };
 		91A3F0ADBEB2E412E4D01DEC /* libPods-PulsePlus-PulsePlusTests.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 65B5BF30490BE3DC84C12EED /* libPods-PulsePlus-PulsePlusTests.a */; };
 		92579D8A10FB4DC697D8CBD4 /* Mulish-ExtraLightItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 70824E94D1B24C2DA3C0848D /* Mulish-ExtraLightItalic.ttf */; };
 		ABB144638AAD4248816074CB /* Mulish-Light.ttf in Resources */ = {isa = PBXBuildFile; fileRef = CFBBC37391474F678BB19ED5 /* Mulish-Light.ttf */; };
@@ -68,7 +67,6 @@
 		70824E94D1B24C2DA3C0848D /* Mulish-ExtraLightItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Mulish-ExtraLightItalic.ttf"; path = "../src/assets/fonts/Mulish-ExtraLightItalic.ttf"; sourceTree = "<group>"; };
 		737AD4D95EEE41E7A50C2552 /* Mulish-SemiBoldItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Mulish-SemiBoldItalic.ttf"; path = "../src/assets/fonts/Mulish-SemiBoldItalic.ttf"; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = PulsePlus/LaunchScreen.storyboard; sourceTree = "<group>"; };
-		8443A0D227D9072A0029836B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = ../../../../../Downloads/AppIcons/Assets.xcassets; sourceTree = "<group>"; };
 		8B80AEC6E0BC9B19C0F38E34 /* libPods-PulsePlus.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-PulsePlus.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		8BD8B134628B4A0A8222CDA3 /* Mulish-Italic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Mulish-Italic.ttf"; path = "../src/assets/fonts/Mulish-Italic.ttf"; sourceTree = "<group>"; };
 		91DF3771AB4D4A22BFF6D01E /* Mulish-MediumItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Mulish-MediumItalic.ttf"; path = "../src/assets/fonts/Mulish-MediumItalic.ttf"; sourceTree = "<group>"; };
@@ -124,7 +122,6 @@
 		0DFCF77C17404E289383CD5B /* Resources */ = {
 			isa = PBXGroup;
 			children = (
-				8443A0D227D9072A0029836B /* Assets.xcassets */,
 				37E4D7FA61994B76A78AF04A /* Mulish-Black.ttf */,
 				6BA277B7F4C74718BFDCB5EB /* Mulish-BlackItalic.ttf */,
 				A611F9704EB74A5FAA2FB403 /* Mulish-Bold.ttf */,
@@ -310,7 +307,6 @@
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				376DEA8B06744C6BB26DA126 /* Mulish-Black.ttf in Resources */,
-				8443A0D327D9072B0029836B /* Assets.xcassets in Resources */,
 				04FE057E937945E3AA0A6B53 /* Mulish-BlackItalic.ttf in Resources */,
 				460E7834EA7F4CAA96D6603F /* Mulish-Bold.ttf in Resources */,
 				6F30F51E8EC2403F8B7F2C67 /* Mulish-BoldItalic.ttf in Resources */,
@@ -566,7 +562,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = PulsePlus/PulsePlus.entitlements;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 6277PK928C;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = PulsePlus/Info.plist;
@@ -574,6 +570,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = 0.2;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -594,13 +591,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = PulsePlus/PulsePlus.entitlements;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 6277PK928C;
 				INFOPLIST_FILE = PulsePlus/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = 0.2;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",

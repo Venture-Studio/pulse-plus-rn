@@ -1,6 +1,6 @@
 import React, { createContext, ReactNode, useContext, useReducer } from "react";
 import { initialState, TasksActionKeys, UserStateProps } from "./actionTypes";
-import { loginUserApi, loginWithTokenApi } from "./api";
+import { loginUserApi, loginWithTokenApi, refreshTokenApi } from "./api";
 import TasksReducer from "./reducer";
 
 export interface UserDispatchProps {
@@ -17,7 +17,7 @@ const UserContext = createContext<UserContextType>({
   userState: initialState,
   userActions: {
     loginUser: () => {},
-    loginWithToken: () =>{}
+    loginWithToken: () => {},
   },
 });
 
@@ -33,7 +33,7 @@ export const UserContextProvider = (props: UserContextProviderProps) => {
     dispatch({ type: TasksActionKeys.setLoading, loading: true });
     loginUserApi(email, password)
       .then((data) => {
-          console.log("iser", data)
+        console.log("iser", data);
         dispatch({ type: TasksActionKeys.setUser, user: data, loading: false });
       })
       .catch((error) => {
@@ -48,15 +48,31 @@ export const UserContextProvider = (props: UserContextProviderProps) => {
     dispatch({ type: TasksActionKeys.setLoading, loading: true });
     loginWithTokenApi(token)
       .then((data) => {
-          console.log("iser", data)
-          dispatch({ type: TasksActionKeys.setUserLoggedIn, token, refToken, loading: false });
+        console.log("iser", data);
+        dispatch({
+          type: TasksActionKeys.setUserLoggedIn,
+          token,
+          refToken,
+          loading: false,
+        });
       })
       .catch((error) => {
-        dispatch({type: TasksActionKeys.setLoading, loading: false})
-        dispatch({
-          type: TasksActionKeys.setError,
-          error: JSON.stringify(error?.message),
-        });
+        refreshTokenApi()
+          .then((data) => {
+            dispatch({
+              type: TasksActionKeys.setUserLoggedIn,
+              token: data?.jwtToken,
+              refToken: data?.refreshToken,
+              loading: false,
+            });
+          })
+          .catch((error) => {
+            dispatch({ type: TasksActionKeys.setLoading, loading: false });
+            dispatch({
+              type: TasksActionKeys.setError,
+              error: JSON.stringify(error?.message),
+            });
+          });
       });
   };
 
@@ -64,7 +80,7 @@ export const UserContextProvider = (props: UserContextProviderProps) => {
     userState,
     userActions: {
       loginUser,
-      loginWithToken
+      loginWithToken,
     },
   };
 

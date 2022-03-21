@@ -172,17 +172,6 @@ const Login: FC<LoginProps> = ({
             loading={loading}
           />
         </View>
-        <View style={forgotPasswordCotainerStyle}>
-          <TouchableOpacity>
-            <AppText style={linkButtonTextStyle}>Forgot Password?</AppText>
-          </TouchableOpacity>
-        </View>
-        <View style={signUpButtonCotainerStyle}>
-          <AppText style={normalTextStyle}>Not a member?</AppText>
-          <TouchableOpacity>
-            <AppText style={linkButtonTextStyle}> Sign Up</AppText>
-          </TouchableOpacity>
-        </View>
       </View>
       {/* footer section */}
       <View style={footerStyle}>

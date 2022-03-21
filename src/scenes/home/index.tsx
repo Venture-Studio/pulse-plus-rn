@@ -17,12 +17,18 @@ import AppleHealthKit, {
   HealthKitPermissions,
 } from "react-native-health";
 import { WebView } from "react-native-webview";
-import { widthPercentageToDP } from "react-native-responsive-screen";
 import Icon from "react-native-vector-icons/AntDesign";
-import axios from "axios";
 import moment from "moment";
 import _ from "lodash";
 import { FormatActivityData, FormatSleepData } from "./helpers";
+import {
+  postSleepData,
+  postHeartRateData,
+  postWorkoutData,
+  postActivityData,
+  postRawData,
+  getLatest,
+} from "../../contexts/user_context/api";
 
 interface HomeProps {
   navigation: NavigationContainerRef;
@@ -61,7 +67,7 @@ const Home: FC<HomeProps> = ({
     logonContainer,
     logoText,
     logoTextConnected,
-    buttonStyle
+    buttonStyle,
   } = styles;
 
   const [mounted, setMounted] = useState<boolean>(false);
@@ -79,18 +85,6 @@ const Home: FC<HomeProps> = ({
   const [activeEnergyData, setActiveEnergyData] = useState<any>(null);
   const [hidden, setHidden] = useState(false);
 
-  function onMessage(data: any) {
-    console.log("🚀 ~ file: index.tsx ~ line 39 ~ onMessage ~ data", data);
-  }
-
-  useEffect(() => {
-    console.log(`${APP_URLS.API_URL}auth/signin?token=${user.jwtToken}`);
-  }, [mounted]);
-
-  useEffect(() => {
-    console.log("webRef", webRef.current);
-  }, [webRef]);
-
   useEffect(() => {
     setWebUrl(`${APP_URLS.API_URL}auth/signin?token=${user.jwtToken}`);
   }, [user.jwtToken]);
@@ -104,12 +98,12 @@ const Home: FC<HomeProps> = ({
         setActivitySynced(true);
         return;
       }
-      axios
-        .post(`${APP_URLS.API_URL}activity`, { activity: endPointData })
+      postActivityData(endPointData)
         .then((res) => {
           setActivitySynced(true);
         })
         .catch((err) => {
+          sendRawData("activity-data-post-error", err);
           console.log("erractivity", err);
         });
       setStepsData(null);
@@ -125,9 +119,41 @@ const Home: FC<HomeProps> = ({
     }
   }, [activitySynced, heartSynced, sleepSynced, workoutSynced]);
 
+  function setPostRawDataState(name: string) {
+    if (name === "sleep") {
+      setSleepSynced(true);
+    } else if (name === "heartrate") {
+      setHeartSynced(true);
+    } else if (name === "workout") {
+      setWorkoutSynced(true);
+    } else if (
+      (name === "basalenergy" ||
+        name === "activeenergy" ||
+        name === "stepcount") &&
+      stepsData &&
+      activeEnergyData &&
+      basalEnergyData
+    ) {
+      setActivitySynced(true);
+    }
+  }
+
+  async function sendRawData(name: string, data: any) {
+    postRawData(name, data)
+      .then((res) => {
+        setPostRawDataState(name);
+        console.log("raw data posted", res);
+      })
+      .catch((err) => {
+        setPostRawDataState(name);
+      });
+  }
+
   async function syncSleepData() {
-    const res = await axios.get(`${APP_URLS.API_URL}sleep/latest`);
-    const latest = res?.data?.sleep?.[0].bedtime_stop;
+    const res = await getLatest("sleep").catch((err) => {
+      sendRawData("sleep-latest-fetch-error", err);
+    });
+    const latest = res?.data?.sleep?.[0]?.bedtime_stop;
 
     const options = {
       startDate:
@@ -138,30 +164,32 @@ const Home: FC<HomeProps> = ({
       options,
       (err: Object, results: Array<HealthValue>) => {
         if (err) {
+          sendRawData("sleep-data-fetch-error", err);
           return;
         }
         if (results.length === 0) {
           setSleepSynced(true);
           return;
         }
+        sendRawData("sleep", results);
+        console.log("sleep", results);
         const endPointData = _.values(FormatSleepData(results));
-        console.log("endPointData", endPointData);
-        axios
-          .post(`${APP_URLS.API_URL}sleep`, { sleep: endPointData })
+        postSleepData(endPointData)
           .then((res) => {
             setSleepSynced(true);
           })
           .catch((err) => {
-            console.log("errsleep", err);
+            sendRawData("sleep-data-post-error", err);
           });
       }
     );
   }
 
   async function syncHeartRateData() {
-    const res = await axios.get(`${APP_URLS.API_URL}heartrate/latest`);
+    const res = await getLatest("heartrate").catch((err) => {
+      sendRawData("heartrate-latest-fetch-error", err);
+    });
     const latest = res?.data?.timestamp;
-
     const options = {
       startDate:
         latest ?? moment(new Date()).subtract(3, "months").toISOString(),
@@ -170,10 +198,16 @@ const Home: FC<HomeProps> = ({
     AppleHealthKit.getHeartRateSamples(
       options,
       (callbackError: string, results: HealthValue[]) => {
+        if (callbackError) {
+          sendRawData("heartrate-data-fetch-error", callbackError);
+          return;
+        }
+
         if (results.length === 0) {
           setHeartSynced(true);
           return;
         }
+        sendRawData("heartrate", results);
         /* Samples are now collected from HealthKit */
         const endPointData = results.map((item) => {
           return {
@@ -181,13 +215,12 @@ const Home: FC<HomeProps> = ({
             value: item.value,
           };
         });
-        const reqBody = { heartrate: endPointData };
-        axios
-          .post(`${APP_URLS.API_URL}heartrate`, reqBody)
+        postHeartRateData(endPointData)
           .then((res) => {
             setHeartSynced(true);
           })
           .catch((err) => {
+            sendRawData("heartrate-data-post-error", err);
             console.log("err", err);
           });
       }
@@ -195,7 +228,9 @@ const Home: FC<HomeProps> = ({
   }
 
   async function syncWorkoutData() {
-    const res = await axios.get(`${APP_URLS.API_URL}workout/latest`);
+    const res = await getLatest("workout").catch((err) => {
+      sendRawData("workout-latest-fetch-error", err);
+    });
     const latest = res?.data?.workouts?.[0]?.time_end;
 
     const options = {
@@ -205,12 +240,14 @@ const Home: FC<HomeProps> = ({
     };
     AppleHealthKit.getAnchoredWorkouts(options, (err: Object, results) => {
       if (err) {
+        sendRawData("workout-data-fetch-error", err);
         return;
       }
       if (results.data.length === 0) {
         setWorkoutSynced(true);
         return;
       }
+      sendRawData("workout", results.data);
       const endPointData = results.data.map((item: any) => {
         return {
           time_start: item.start,
@@ -219,19 +256,20 @@ const Home: FC<HomeProps> = ({
         };
       });
 
-      axios
-        .post(`${APP_URLS.API_URL}workout`, { workouts: endPointData })
+      postWorkoutData(endPointData)
         .then((res) => {
           setWorkoutSynced(true);
         })
         .catch((err) => {
-          console.log("errworkout", err);
+          sendRawData("workout-data-post-error", err);
         });
     });
   }
 
   async function syncStepsData() {
-    const res = await axios.get(`${APP_URLS.API_URL}activity/latest`);
+    const res = await getLatest("activity").catch((err) => {
+      sendRawData("activity-latest-fetch-error", err);
+    });
     const latest = res?.data?.activity?.[0]?.date;
 
     const options = {
@@ -242,40 +280,47 @@ const Home: FC<HomeProps> = ({
 
     AppleHealthKit.getBasalEnergyBurned(options, (err: Object, results) => {
       if (err) {
+        sendRawData("basal-energy-data-fetch-error", err);
         return;
       }
+      sendRawData("basalenergy", results);
       setBasalEnergyData(results);
     });
 
     AppleHealthKit.getActiveEnergyBurned(options, (err: Object, results) => {
       if (err) {
+        sendRawData("active-energy-data-fetch-error", err);
         return;
       }
+      sendRawData("activeenergy", results);
       setActiveEnergyData(results);
     });
 
     AppleHealthKit.getDailyStepCountSamples(options, (err: Object, results) => {
       if (err) {
+        sendRawData("step-data-fetch-error", err);
         return;
       }
+      sendRawData("stepcount", results);
       setStepsData(results);
     });
   }
 
   const connectToApple = React.useCallback(() => {
     setMounted(true);
-    setActivitySynced(false);
-    setWorkoutSynced(false);
-    setHeartSynced(false);
-    setSleepSynced(false);
-    setSyncing(true);
 
     AppleHealthKit.initHealthKit(permissions, (error: string) => {
       /* Called after we receive a response from the system */
 
       if (error) {
         console.log("[ERROR] Cannot grant permissions!");
+        return;
       }
+      setActivitySynced(false);
+      setWorkoutSynced(false);
+      setHeartSynced(false);
+      setSleepSynced(false);
+      setSyncing(true);
 
       /* Can now read or write to HealthKit */
 
@@ -315,7 +360,7 @@ const Home: FC<HomeProps> = ({
           webRef?.current.postMessage("Data from React Native App");
         }}
         source={{
-          uri: `https://www.pulse.plus/`,
+          uri: `https://www.pulse.plus/dashboard`,
           headers: {
             Cookie: `auth-cookie-jwt=${user.jwtToken}; auth-cookie-refresh=${user.refreshToken}`,
           },
