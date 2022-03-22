@@ -97,10 +97,15 @@ export const postActivityData = (data: any) =>
       });
   });
 
-export const postRawData = (name: string, data: any) =>
+export const postRawData = (name: string, data: any, timestamp: string) =>
   new Promise((resolve, reject) => {
+    console.log(timestamp);
     axios
-      .post(`${APP_URLS.API_URL}apple`, { type: name, data: data })
+      .post(`${APP_URLS.API_URL}apple`, {
+        type: name,
+        data: data,
+        timestamp: timestamp
+      })
       .then((res) => {
         resolve(res);
       })
@@ -112,7 +117,7 @@ export const postRawData = (name: string, data: any) =>
 export const getLatest = (name: string) =>
   new Promise<any>((resolve, reject) => {
     axios
-      .get(`${APP_URLS.API_URL}${name}/latest`)
+      .get(`${APP_URLS.API_URL}apple/latest?type=${name}`)
       .then((res) => {
         resolve(res);
       })

@@ -9,7 +9,7 @@ import RoundButton from "../../components/RoundButton";
 import AppText from "../../components/AppText";
 import { withUser } from "../../contexts/user_context";
 import { UserStateProps } from "../../contexts/user_context/actionTypes";
-import { APP_STRINGS, APP_URLS } from "../../utils/constants";
+import { APP_STRINGS, APP_URLS, AppleDataTypes } from "../../utils/constants";
 import ShouldRender from "../../utils/ShouldRender";
 import styles from "./homeStyles";
 import AppleHealthKit, {
@@ -20,12 +20,7 @@ import { WebView } from "react-native-webview";
 import Icon from "react-native-vector-icons/AntDesign";
 import moment from "moment";
 import _ from "lodash";
-import { FormatActivityData, FormatSleepData } from "./helpers";
 import {
-  postSleepData,
-  postHeartRateData,
-  postWorkoutData,
-  postActivityData,
   postRawData,
   getLatest,
 } from "../../contexts/user_context/api";
@@ -90,26 +85,38 @@ const Home: FC<HomeProps> = ({
   }, [user.jwtToken]);
 
   useEffect(() => {
-    if (stepsData && activeEnergyData && basalEnergyData) {
-      const endPointData = _.values(
-        FormatActivityData(stepsData, activeEnergyData, basalEnergyData)
-      );
-      if (endPointData.length === 0) {
-        setActivitySynced(true);
-        return;
+    try {
+      if (stepsData && activeEnergyData && basalEnergyData) {
+        if (stepsData.length === 0) {
+          sendRawData(AppleDataTypes.ActivityError, ["Empty steps array found"]);
+        }
+        if (activeEnergyData.length === 0) {
+          sendRawData(AppleDataTypes.ActivityError, [
+            "Empty activeEnergy array found",
+          ]);
+        }
+        if (basalEnergyData.length === 0) {
+          sendRawData(AppleDataTypes.ActivityError, [
+            "Empty basalEnergy array found",
+          ]);
+        }
+        const data = [
+          {
+            basalEnergy: basalEnergyData,
+            activeEnergy: activeEnergyData,
+            steps: stepsData,
+          },
+        ];
+        sendRawData("activity", data);
+        setStepsData(null);
+        setActiveEnergyData(null);
+        setBasalEnergyData(null);
       }
-      postActivityData(endPointData)
-        .then((res) => {
-          setActivitySynced(true);
-        })
-        .catch((err) => {
-          sendRawData("activity-data-post-error", err);
-          console.log("erractivity", err);
-        });
-      setStepsData(null);
-      setActiveEnergyData(null);
-      setBasalEnergyData(null);
+    } catch (error) {
+      setActivitySynced(true);
+      sendRawData(AppleDataTypes.ActivityError, [error]);
     }
+
   }, [stepsData, activeEnergyData, basalEnergyData]);
 
   useEffect(() => {
@@ -120,29 +127,21 @@ const Home: FC<HomeProps> = ({
   }, [activitySynced, heartSynced, sleepSynced, workoutSynced]);
 
   function setPostRawDataState(name: string) {
-    if (name === "sleep") {
+    if (name === AppleDataTypes.Sleep) {
       setSleepSynced(true);
-    } else if (name === "heartrate") {
+    } else if (name === AppleDataTypes.Heartrate) {
       setHeartSynced(true);
-    } else if (name === "workout") {
+    } else if (name === AppleDataTypes.Workout) {
       setWorkoutSynced(true);
-    } else if (
-      (name === "basalenergy" ||
-        name === "activeenergy" ||
-        name === "stepcount") &&
-      stepsData &&
-      activeEnergyData &&
-      basalEnergyData
-    ) {
+    } else if (name === AppleDataTypes.Activity) {
       setActivitySynced(true);
     }
   }
 
   async function sendRawData(name: string, data: any) {
-    postRawData(name, data)
+    postRawData(name, data, moment(new Date()).toISOString())
       .then((res) => {
         setPostRawDataState(name);
-        console.log("raw data posted", res);
       })
       .catch((err) => {
         setPostRawDataState(name);
@@ -150,160 +149,149 @@ const Home: FC<HomeProps> = ({
   }
 
   async function syncSleepData() {
-    const res = await getLatest("sleep").catch((err) => {
-      sendRawData("sleep-latest-fetch-error", err);
-    });
-    const latest = res?.data?.sleep?.[0]?.bedtime_stop;
+    try {
+      const res = await getLatest("sleep").catch((err) => {
+        sendRawData(AppleDataTypes.SleepError, err);
+      });
+      const latest = res?.data?.timestamp;
 
-    const options = {
-      startDate:
-        latest ?? moment(new Date()).subtract(3, "months").toISOString(),
-      endDate: new Date().toISOString(),
-    };
-    AppleHealthKit.getSleepSamples(
-      options,
-      (err: Object, results: Array<HealthValue>) => {
-        if (err) {
-          sendRawData("sleep-data-fetch-error", err);
-          return;
-        }
-        if (results.length === 0) {
-          setSleepSynced(true);
-          return;
-        }
-        sendRawData("sleep", results);
-        console.log("sleep", results);
-        const endPointData = _.values(FormatSleepData(results));
-        postSleepData(endPointData)
-          .then((res) => {
+      const options = {
+        startDate:
+          latest ?? moment(new Date()).subtract(3, "months").toISOString(),
+        endDate: new Date().toISOString(),
+      };
+      AppleHealthKit.getSleepSamples(
+        options,
+        (err: Object, results: Array<HealthValue>) => {
+          if (err) {
+            sendRawData(AppleDataTypes.SleepError, err);
             setSleepSynced(true);
-          })
-          .catch((err) => {
-            sendRawData("sleep-data-post-error", err);
-          });
-      }
-    );
+            return;
+          }
+          if (results.length === 0) {
+            sendRawData(AppleDataTypes.SleepError, ["Empty array found"]);
+            setSleepSynced(true);
+            return;
+          }
+          sendRawData(AppleDataTypes.Sleep, results);
+        }
+      );
+    } catch (error) {
+      setSleepSynced(true);
+      sendRawData(AppleDataTypes.SleepError, [error]);
+    }
   }
 
   async function syncHeartRateData() {
-    const res = await getLatest("heartrate").catch((err) => {
-      sendRawData("heartrate-latest-fetch-error", err);
-    });
-    const latest = res?.data?.timestamp;
-    const options = {
-      startDate:
-        latest ?? moment(new Date()).subtract(3, "months").toISOString(),
-      endDate: new Date().toISOString(),
-    };
-    AppleHealthKit.getHeartRateSamples(
-      options,
-      (callbackError: string, results: HealthValue[]) => {
-        if (callbackError) {
-          sendRawData("heartrate-data-fetch-error", callbackError);
-          return;
-        }
-
-        if (results.length === 0) {
-          setHeartSynced(true);
-          return;
-        }
-        sendRawData("heartrate", results);
-        /* Samples are now collected from HealthKit */
-        const endPointData = results.map((item) => {
-          return {
-            timestamp: item.startDate,
-            value: item.value,
-          };
-        });
-        postHeartRateData(endPointData)
-          .then((res) => {
+    try {
+      const res = await getLatest("heartrate").catch((err) => {
+        sendRawData(AppleDataTypes.Heartrate, err);
+      });
+      const latest = res?.data?.timestamp;
+      const options = {
+        startDate:
+          latest ?? moment(new Date()).subtract(3, "months").toISOString(),
+        endDate: new Date().toISOString(),
+      };
+      AppleHealthKit.getHeartRateSamples(
+        options,
+        (callbackError: string, results: HealthValue[]) => {
+          if (callbackError) {
+            sendRawData(AppleDataTypes.HeartrateError, callbackError);
             setHeartSynced(true);
-          })
-          .catch((err) => {
-            sendRawData("heartrate-data-post-error", err);
-            console.log("err", err);
-          });
-      }
-    );
+            return;
+          }
+          if (results.length === 0) {
+            setHeartSynced(true);
+            sendRawData(AppleDataTypes.HeartrateError, ["Empty array found"]);
+            return;
+          }
+          sendRawData(AppleDataTypes.Heartrate, results);
+        }
+      );
+    } catch (error) {
+      setHeartSynced(true);
+      sendRawData(AppleDataTypes.HeartrateError, [error]);
+    }
   }
 
   async function syncWorkoutData() {
-    const res = await getLatest("workout").catch((err) => {
-      sendRawData("workout-latest-fetch-error", err);
-    });
-    const latest = res?.data?.workouts?.[0]?.time_end;
-
-    const options = {
-      startDate:
-        latest ?? moment(new Date()).subtract(3, "months").toISOString(),
-      endDate: new Date().toISOString(),
-    };
-    AppleHealthKit.getAnchoredWorkouts(options, (err: Object, results) => {
-      if (err) {
-        sendRawData("workout-data-fetch-error", err);
-        return;
-      }
-      if (results.data.length === 0) {
-        setWorkoutSynced(true);
-        return;
-      }
-      sendRawData("workout", results.data);
-      const endPointData = results.data.map((item: any) => {
-        return {
-          time_start: item.start,
-          time_end: item.end,
-          calories: item.calories,
-        };
+    try {
+      const res = await getLatest("workout").catch((err) => {
+        sendRawData(AppleDataTypes.WorkoutError, err);
       });
+      const latest = res?.data?.timestamp;
 
-      postWorkoutData(endPointData)
-        .then((res) => {
+      const options = {
+        startDate:
+          latest ?? moment(new Date()).subtract(3, "months").toISOString(),
+        endDate: new Date().toISOString(),
+      };
+      AppleHealthKit.getAnchoredWorkouts(options, (err: Object, results) => {
+        if (err) {
           setWorkoutSynced(true);
-        })
-        .catch((err) => {
-          sendRawData("workout-data-post-error", err);
-        });
-    });
+          sendRawData(AppleDataTypes.WorkoutError, err);
+          return;
+        }
+        if (results.data.length === 0) {
+          setWorkoutSynced(true);
+          sendRawData(AppleDataTypes.WorkoutError, ["Empty array found"]);
+          return;
+        }
+        sendRawData(AppleDataTypes.Workout, results.data);
+      });
+    } catch (error) {
+      setWorkoutSynced(true);
+      sendRawData(AppleDataTypes.WorkoutError, [error]);
+    }
   }
 
   async function syncStepsData() {
-    const res = await getLatest("activity").catch((err) => {
-      sendRawData("activity-latest-fetch-error", err);
-    });
-    const latest = res?.data?.activity?.[0]?.date;
+    try {
+      const res = await getLatest("activity").catch((err) => {
+        sendRawData(AppleDataTypes.ActivityError, err);
+      });
+      const latest = res?.data?.timestamp;
 
-    const options = {
-      startDate:
-        latest ?? moment(new Date()).subtract(3, "months").toISOString(),
-      endDate: new Date().toISOString(),
-    };
+      const options = {
+        startDate:
+          latest ?? moment(new Date()).subtract(3, "months").toISOString(),
+        endDate: new Date().toISOString(),
+      };
 
-    AppleHealthKit.getBasalEnergyBurned(options, (err: Object, results) => {
-      if (err) {
-        sendRawData("basal-energy-data-fetch-error", err);
-        return;
-      }
-      sendRawData("basalenergy", results);
-      setBasalEnergyData(results);
-    });
+      AppleHealthKit.getBasalEnergyBurned(options, (err: Object, results) => {
+        if (err) {
+          sendRawData(AppleDataTypes.Heartrate, err);
+          setActivitySynced(true);
+          return;
+        }
+        setBasalEnergyData(results);
+      });
 
-    AppleHealthKit.getActiveEnergyBurned(options, (err: Object, results) => {
-      if (err) {
-        sendRawData("active-energy-data-fetch-error", err);
-        return;
-      }
-      sendRawData("activeenergy", results);
-      setActiveEnergyData(results);
-    });
+      AppleHealthKit.getActiveEnergyBurned(options, (err: Object, results) => {
+        if (err) {
+          sendRawData(AppleDataTypes.ActivityError, err);
+          setActivitySynced(true);
+          return;
+        }
+        setActiveEnergyData(results);
+      });
 
-    AppleHealthKit.getDailyStepCountSamples(options, (err: Object, results) => {
-      if (err) {
-        sendRawData("step-data-fetch-error", err);
-        return;
-      }
-      sendRawData("stepcount", results);
-      setStepsData(results);
-    });
+      AppleHealthKit.getDailyStepCountSamples(
+        options,
+        (err: Object, results) => {
+          if (err) {
+            sendRawData(AppleDataTypes.ActivityError, err);
+            setActivitySynced(true);
+            return;
+          }
+          setStepsData(results);
+        }
+      );
+    } catch (error) {
+      setActivitySynced(true);
+      sendRawData(AppleDataTypes.ActivityError, [error]);
+    }
   }
 
   const connectToApple = React.useCallback(() => {

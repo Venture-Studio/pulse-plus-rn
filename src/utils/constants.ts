@@ -14,3 +14,14 @@ export const APP_STRINGS = {
     HOME_SCREEN_TITLE: 'Home Screen',
     LOGIN_SCREEN_TITLE: 'Login Screen',
 };
+
+export enum AppleDataTypes {
+    Sleep = 'sleep',
+    Activity = 'activity',
+    Heartrate = 'heartrate',
+    Workout = 'workout',
+    SleepError = 'sleep_error',
+    ActivityError = 'activity_error',
+    HeartrateError = 'heartrate_error',
+    WorkoutError = 'workout_error',
+  }
