@@ -28,7 +28,7 @@ const AppText: FC<AppTextProps> = ({
     return (
         <Text
             style={[
-                { fontFamily: `NunitoSans-${getWeight()}${italic ? 'Italic' : ''}` },
+                { fontFamily: `Mulish-${getWeight()}${italic ? 'Italic' : ''}` },
                 ...(Array.isArray(style) ? style : [style]),
             ]}
             {...textProps}>

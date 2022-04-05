@@ -1,12 +1,14 @@
-import { User } from '../../../utils/models';
+import { User } from "../../../utils/models";
 
 const UserDataParser = (res: any): User => ({
-    email: res?.email ?? '',
-    firstName: res?.givenName ?? '',
-    lastName: res.familyName,
-    name: res.name,
-    picture: res?.picture ?? '',
-    emailVerified: res?.emailVerified ?? false,
+  email: res?.userData?.email ?? "",
+  firstName: res?.userData?.firstName ?? "",
+  lastName: res?.userData?.lastName,
+  isEmailConfirmed: res?.userData?.isEmailConfirmed ?? false,
+  connectedDevices: res?.userData?.connectedDevices ?? [],
+  jwtToken: res?.jwtToken ?? "",
+  refreshToken: res?.refreshToken ?? "",
+  isLoggedIn: true
 });
 
 export default UserDataParser;

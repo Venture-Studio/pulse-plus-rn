@@ -1,12 +1,10 @@
 export interface User {
-    email?: string;
-    firstName: string;
-    lastName: string;
-    name: string;
-    picture?: string;
-    emailVerified?: boolean;
-    accessToken?: string;
-    refreshToken?: string;
-    isLoggedIn?: boolean;
-    phoneNumber?: string;
+  email?: string;
+  firstName: string;
+  isEmailConfirmed: boolean;
+  lastName: string;
+  connectedDevices: string[];
+  jwtToken: string;
+  refreshToken: string;
+  isLoggedIn: boolean
 }
