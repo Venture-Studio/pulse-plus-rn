@@ -3,7 +3,9 @@ import {
   useFocusEffect,
 } from "@react-navigation/native";
 import React, { FC, JSX, useEffect, useRef, useState } from "react";
-import { Dimensions, Text, View, TouchableOpacity } from "react-native";
+import { Dimensions, Text, View, TouchableOpacity, Alert } from "react-native";
+import BackgroundService from "react-native-background-actions";
+
 import NotchHelper from "../../components/NotchHelper";
 import RoundButton from "../../components/RoundButton";
 import AppText from "../../components/AppText";
@@ -18,12 +20,10 @@ import AppleHealthKit, {
 } from "react-native-health";
 import { WebView } from "react-native-webview";
 import Icon from "react-native-vector-icons/AntDesign";
-import moment from "moment";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import moment, { unitOfTime } from "moment";
 import _ from "lodash";
-import {
-  postRawData,
-  getLatest,
-} from "../../contexts/user_context/api";
+import { postRawData, getLatest } from "../../contexts/user_context/api";
 
 interface HomeProps {
   navigation: NavigationContainerRef;
@@ -63,6 +63,7 @@ const Home: FC<HomeProps> = ({
     logoText,
     logoTextConnected,
     buttonStyle,
+    buttonStyleDisabled,
   } = styles;
 
   const [mounted, setMounted] = useState<boolean>(false);
@@ -70,6 +71,7 @@ const Home: FC<HomeProps> = ({
   const { user } = userState;
   const webRef = useRef(null);
   const [connected, setConnected] = useState(false);
+  const [preConnected, setPreConnected] = useState(false);
   const [sleepSynced, setSleepSynced] = useState(false);
   const [activitySynced, setActivitySynced] = useState(false);
   const [workoutSynced, setWorkoutSynced] = useState(false);
@@ -81,6 +83,10 @@ const Home: FC<HomeProps> = ({
   const [hidden, setHidden] = useState(false);
 
   useEffect(() => {
+    getConnectedFromStorage();
+  }, []);
+
+  useEffect(() => {
     setWebUrl(`${APP_URLS.API_URL}auth/signin?token=${user.jwtToken}`);
   }, [user.jwtToken]);
 
@@ -88,7 +94,9 @@ const Home: FC<HomeProps> = ({
     try {
       if (stepsData && activeEnergyData && basalEnergyData) {
         if (stepsData.length === 0) {
-          sendRawData(AppleDataTypes.ActivityError, ["Empty steps array found"]);
+          sendRawData(AppleDataTypes.ActivityError, [
+            "Empty steps array found",
+          ]);
         }
         if (activeEnergyData.length === 0) {
           sendRawData(AppleDataTypes.ActivityError, [
@@ -116,15 +124,137 @@ const Home: FC<HomeProps> = ({
       setActivitySynced(true);
       sendRawData(AppleDataTypes.ActivityError, [error]);
     }
-
   }, [stepsData, activeEnergyData, basalEnergyData]);
 
   useEffect(() => {
+    console.log("in thisss");
     if (activitySynced && heartSynced && sleepSynced && workoutSynced) {
       setSyncing(false);
       setConnected(true);
+      setConnectedInStorage();
+      setHidden(true);
+      Alert.alert("Apple watch data has been synced");
+      if (!preConnected) {
+        startBackgroundTask();
+      }
     }
   }, [activitySynced, heartSynced, sleepSynced, workoutSynced]);
+
+  useEffect(() => {
+    if (preConnected) {
+      setHidden(true);
+    }
+  }, [preConnected]);
+
+  async function startBackgroundTask() {
+    const options = {
+      taskName: "Sync Data",
+      taskTitle: "Syncing Data",
+      taskDesc: "Syncing Data",
+      taskIcon: {
+        name: "ic_launcher",
+        type: "mipmap",
+      },
+      color: "#ff00ff",
+      linkingURI: "yourSchemeHere://chat/jane",
+      parameters: {},
+    };
+
+    let itemToSync = await AsyncStorage.getItem("ItemToSync");
+    let itemDate = await AsyncStorage.getItem("ItemDate");
+    const dateSyncStarted = await AsyncStorage.getItem("DateSyncStarted");
+    const finalDate = moment(dateSyncStarted)
+      .subtract(3, "months")
+      .toISOString();
+
+    if (itemToSync) {
+      itemToSync = AppleDataTypes.Sleep;
+    }
+
+    while (itemToSync !== "Done") {
+      if (itemToSync === AppleDataTypes.Sleep) {
+        if (!itemDate) {
+          itemDate = dateSyncStarted;
+        }
+        await BackgroundService.start(
+          () => syncSleepData(2, "weeks", false, itemDate),
+          options
+        );
+        if (moment(itemDate).isBefore(finalDate)) {
+          itemToSync = AppleDataTypes.Heartrate;
+          itemDate = dateSyncStarted;
+          await AsyncStorage.setItem("ItemToSync", AppleDataTypes.Heartrate);
+          await AsyncStorage.setItem("ItemDate", itemDate ?? "");
+        } else {
+          itemDate = moment(itemDate).subtract(2, "weeks").toISOString();
+          await AsyncStorage.setItem("ItemDate", itemDate);
+        }
+      } else if (itemToSync === AppleDataTypes.Heartrate) {
+        if (!itemDate) {
+          itemDate = dateSyncStarted;
+        }
+        await BackgroundService.start(
+          () => syncHeartRateData(2, "weeks", false, itemDate),
+          options
+        );
+        if (moment(itemDate).isBefore(finalDate)) {
+          itemToSync = AppleDataTypes.Workout;
+          itemDate = dateSyncStarted;
+          await AsyncStorage.setItem("ItemToSync", AppleDataTypes.Workout);
+          await AsyncStorage.setItem("ItemDate", itemDate ?? "");
+        } else {
+          itemDate = moment(itemDate).subtract(2, "weeks").toISOString();
+          await AsyncStorage.setItem("ItemDate", itemDate);
+        }
+      } else if (itemToSync === AppleDataTypes.Workout) {
+        if (!itemDate) {
+          itemDate = dateSyncStarted;
+        }
+        await BackgroundService.start(
+          () => syncWorkoutData(2, "weeks", false, itemDate),
+          options
+        );
+        if (moment(itemDate).isBefore(finalDate)) {
+          itemToSync = AppleDataTypes.Activity;
+          itemDate = dateSyncStarted;
+          await AsyncStorage.setItem("ItemToSync", AppleDataTypes.Activity);
+          await AsyncStorage.setItem("ItemDate", itemDate ?? "");
+        } else {
+          itemDate = moment(itemDate).subtract(2, "weeks").toISOString();
+          await AsyncStorage.setItem("ItemDate", itemDate);
+        }
+      } else {
+        if (!itemDate) {
+          itemDate = dateSyncStarted;
+        }
+        await BackgroundService.start(
+          () => syncStepsData(2, "weeks", false, itemDate),
+          options
+        );
+        if (moment(itemDate).isBefore(finalDate)) {
+          itemToSync = "Done";
+          itemDate = dateSyncStarted;
+          await AsyncStorage.setItem("ItemToSync", "Done");
+          await AsyncStorage.setItem("ItemDate", itemDate ?? "");
+        } else {
+          itemDate = moment(itemDate).subtract(2, "weeks").toISOString();
+          await AsyncStorage.setItem("ItemDate", itemDate);
+        }
+      }
+    }
+  }
+
+  function setConnectedInStorage() {
+    AsyncStorage.setItem("Connected", "true");
+  }
+
+  async function getConnectedFromStorage() {
+    const connect = await AsyncStorage.getItem("Connected");
+    if (connect === "true") {
+      setPreConnected(true);
+      startBackgroundTask();
+    }
+  }
 
   function setPostRawDataState(name: string) {
     if (name === AppleDataTypes.Sleep) {
@@ -148,17 +278,28 @@ const Home: FC<HomeProps> = ({
       });
   }
 
-  async function syncSleepData() {
+  async function syncSleepData(
+    value: number,
+    unit: unitOfTime.Base,
+    isBackground: boolean,
+    startDate?: string | null
+  ) {
     try {
-      const res = await getLatest("sleep").catch((err) => {
-        sendRawData(AppleDataTypes.SleepError, err);
-      });
-      const latest = res?.data?.timestamp;
+      let latest = undefined;
+      if (!isBackground) {
+        const res = await getLatest("sleep").catch((err) => {
+          sendRawData(AppleDataTypes.SleepError, err);
+        });
+        latest = res?.data?.timestamp;
+      }
 
       const options = {
         startDate:
-          latest ?? moment(new Date()).subtract(3, "months").toISOString(),
-        endDate: new Date().toISOString(),
+          latest ??
+          moment(startDate ?? new Date())
+            .subtract(value, unit)
+            .toISOString(),
+        endDate: startDate ?? new Date().toISOString(),
       };
       AppleHealthKit.getSleepSamples(
         options,
@@ -173,7 +314,11 @@ const Home: FC<HomeProps> = ({
             setSleepSynced(true);
             return;
           }
-          sendRawData(AppleDataTypes.Sleep, results);
+          const filtered = results.filter((item) => {
+            //@ts-ignore
+            return item?.sourceName?.includes("Apple");
+          });
+          sendRawData(AppleDataTypes.Sleep, filtered);
         }
       );
     } catch (error) {
@@ -182,16 +327,27 @@ const Home: FC<HomeProps> = ({
     }
   }
 
-  async function syncHeartRateData() {
+  async function syncHeartRateData(
+    value: number,
+    unit: unitOfTime.Base,
+    isBackground: boolean,
+    startDate?: string | null
+  ) {
     try {
-      const res = await getLatest("heartrate").catch((err) => {
-        sendRawData(AppleDataTypes.Heartrate, err);
-      });
-      const latest = res?.data?.timestamp;
+      let latest = undefined;
+      if (!isBackground) {
+        const res = await getLatest("heartrate").catch((err) => {
+          sendRawData(AppleDataTypes.Heartrate, err);
+        });
+        latest = res?.data?.timestamp;
+      }
       const options = {
         startDate:
-          latest ?? moment(new Date()).subtract(3, "months").toISOString(),
-        endDate: new Date().toISOString(),
+          latest ??
+          moment(startDate ?? new Date())
+            .subtract(value, unit)
+            .toISOString(),
+        endDate: startDate ?? new Date().toISOString(),
       };
       AppleHealthKit.getHeartRateSamples(
         options,
@@ -206,7 +362,11 @@ const Home: FC<HomeProps> = ({
             sendRawData(AppleDataTypes.HeartrateError, ["Empty array found"]);
             return;
           }
-          sendRawData(AppleDataTypes.Heartrate, results);
+          const filtered = results.filter((item) => {
+            //@ts-ignore
+            return item?.sourceName?.includes("Apple");
+          });
+          sendRawData(AppleDataTypes.Heartrate, filtered);
         }
       );
     } catch (error) {
@@ -215,17 +375,28 @@ const Home: FC<HomeProps> = ({
     }
   }
 
-  async function syncWorkoutData() {
+  async function syncWorkoutData(
+    value: number,
+    unit: unitOfTime.Base,
+    isBackground: boolean,
+    startDate?: string | null
+  ) {
     try {
-      const res = await getLatest("workout").catch((err) => {
-        sendRawData(AppleDataTypes.WorkoutError, err);
-      });
-      const latest = res?.data?.timestamp;
+      let latest = undefined;
+      if (!isBackground) {
+        const res = await getLatest("workout").catch((err) => {
+          sendRawData(AppleDataTypes.WorkoutError, err);
+        });
+        latest = res?.data?.timestamp;
+      }
 
       const options = {
         startDate:
-          latest ?? moment(new Date()).subtract(3, "months").toISOString(),
-        endDate: new Date().toISOString(),
+          latest ??
+          moment(startDate ?? new Date())
+            .subtract(value, unit)
+            .toISOString(),
+        endDate: startDate ?? new Date().toISOString(),
       };
       AppleHealthKit.getAnchoredWorkouts(options, (err: Object, results) => {
         if (err) {
@@ -238,7 +409,11 @@ const Home: FC<HomeProps> = ({
           sendRawData(AppleDataTypes.WorkoutError, ["Empty array found"]);
           return;
         }
-        sendRawData(AppleDataTypes.Workout, results.data);
+        const filtered = results.data.filter((item) => {
+          //@ts-ignore
+          return item?.sourceName?.includes("Apple");
+        });
+        sendRawData(AppleDataTypes.Workout, filtered);
       });
     } catch (error) {
       setWorkoutSynced(true);
@@ -246,17 +421,28 @@ const Home: FC<HomeProps> = ({
     }
   }
 
-  async function syncStepsData() {
+  async function syncStepsData(
+    value: number,
+    unit: unitOfTime.Base,
+    isBackground: boolean,
+    startDate?: string | null
+  ) {
     try {
-      const res = await getLatest("activity").catch((err) => {
-        sendRawData(AppleDataTypes.ActivityError, err);
-      });
-      const latest = res?.data?.timestamp;
+      let latest = undefined;
+      if (!isBackground) {
+        const res = await getLatest("activity").catch((err) => {
+          sendRawData(AppleDataTypes.ActivityError, err);
+        });
+        latest = res?.data?.timestamp;
+      }
 
       const options = {
         startDate:
-          latest ?? moment(new Date()).subtract(3, "months").toISOString(),
-        endDate: new Date().toISOString(),
+          latest ??
+          moment(startDate ?? new Date())
+            .subtract(value, unit)
+            .toISOString(),
+        endDate: startDate ?? new Date().toISOString(),
       };
 
       AppleHealthKit.getBasalEnergyBurned(options, (err: Object, results) => {
@@ -294,16 +480,23 @@ const Home: FC<HomeProps> = ({
     }
   }
 
+  async function setSyncStartDate() {
+    const date = await AsyncStorage.getItem("DateSyncStarted");
+    if (!date) {
+      AsyncStorage.setItem("DateSyncStarted", new Date().toISOString());
+    }
+  }
+
   const connectToApple = React.useCallback(() => {
     setMounted(true);
 
     AppleHealthKit.initHealthKit(permissions, (error: string) => {
       /* Called after we receive a response from the system */
-
       if (error) {
         console.log("[ERROR] Cannot grant permissions!");
         return;
       }
+      setSyncStartDate();
       setActivitySynced(false);
       setWorkoutSynced(false);
       setHeartSynced(false);
@@ -316,10 +509,10 @@ const Home: FC<HomeProps> = ({
         startDate: new Date(2022, 1, 1).toISOString(),
         endDate: new Date().toISOString(),
       };
-      syncHeartRateData();
-      syncSleepData();
-      syncWorkoutData();
-      syncStepsData();
+      syncHeartRateData(2, "weeks", false);
+      syncSleepData(2, "weeks", false);
+      syncWorkoutData(2, "weeks", false);
+      syncStepsData(2, "weeks", false);
     });
 
     return () => {
@@ -372,7 +565,7 @@ const Home: FC<HomeProps> = ({
             }}
           >
             <AppText style={hideButtonText}>
-              {hidden ? "Connect to apple watch" : "Hide"}
+              {hidden ? "Sync Apple watch data" : "Hide"}
             </AppText>
           </TouchableOpacity>
         </View>
@@ -398,12 +591,19 @@ const Home: FC<HomeProps> = ({
 
             <RoundButton
               onPress={connectToApple}
-              title={syncing ? "Syncing" : connected ? "Sync" : "Connect"}
+              title={
+                syncing
+                  ? "Syncing"
+                  : !preConnected && !connected
+                  ? "Connect"
+                  : "Sync Now"
+              }
               borderRadius={50}
               textStyle={{ fontSize: 18 }}
               loading={syncing}
-              activityIndicatorColor={"#009CFF"}
-              buttonStyle={buttonStyle}
+              disabled={syncing}
+              activityIndicatorColor={"black"}
+              buttonStyle={[buttonStyle, syncing ? buttonStyleDisabled : {}]}
             />
           </View>
         </ShouldRender>

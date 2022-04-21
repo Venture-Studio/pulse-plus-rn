@@ -34,12 +34,13 @@ export const UserContextProvider = (props: UserContextProviderProps) => {
     loginUserApi(email, password)
       .then((data) => {
         console.log("iser", data);
-        dispatch({ type: TasksActionKeys.setUser, user: data, loading: false });
+        dispatch({ type: TasksActionKeys.setUser, user: data, loading: false, error: undefined });
       })
       .catch((error) => {
+        dispatch({ type: TasksActionKeys.setLoading, loading: false });
         dispatch({
           type: TasksActionKeys.setError,
-          error: JSON.stringify(error?.message),
+          error: 'Invalid email or password',
         });
       });
   };

@@ -1,12 +1,13 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useNavigation } from "@react-navigation/native";
-import React, { FC, JSX, useEffect, useState, useCallback } from "react";
+import React, { FC, JSX, useEffect, useState, useCallback, useRef } from "react";
 import {
   ActivityIndicator,
   Text,
   View,
   Image,
   TouchableOpacity,
+  AppState
 } from "react-native";
 import { RFPercentage } from "react-native-responsive-fontsize";
 import RoundButton from "../../components/RoundButton";
@@ -20,7 +21,8 @@ import { LogoDark, LogoLight } from "../../assets";
 import FormTextInput from "../../components/FormTextInput";
 import AppText from "../../components/AppText";
 import validator from "validator";
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+//import BackgroundService from "react-native-background-actions";
 
 type FormInputType = {
   value: string;
@@ -66,29 +68,36 @@ const Login: FC<LoginProps> = ({
 
   const { isLoggedIn, jwtToken, refreshToken } = user;
 
-  async function checkToken(){
-    const jwt =  await AsyncStorage.getItem('jwttoken')
-    const refresh =  await AsyncStorage.getItem('reftoken')
-    console.log('jwt',jwt)
-    if(jwt && refresh){
-      loginWithToken(jwt)
+  const appState = useRef(AppState.currentState);
+  const [appStateVisible, setAppStateVisible] = useState(appState.current);
+
+
+  async function checkToken() {
+    const jwt = await AsyncStorage.getItem("jwttoken");
+    const refresh = await AsyncStorage.getItem("reftoken");
+    console.log("jwt", jwt);
+    if (jwt && refresh) {
+      loginWithToken(jwt);
     }
   }
 
   // initial useEffect
   useEffect(() => {
-    checkToken()
+    checkToken();
   }, []);
 
   useEffect(() => {
     console.log("ligged", isLoggedIn);
     if (user.isLoggedIn) {
-      AsyncStorage.setItem('jwttoken',user.jwtToken)
-      AsyncStorage.setItem('reftoken',user.refreshToken)
+      AsyncStorage.setItem("jwttoken", user.jwtToken);
+      AsyncStorage.setItem("reftoken", user.refreshToken);
       navigation.navigate(APP_ROUTES.HOME_SCREEN);
     }
   }, [user]);
 
+  useEffect(() => {
+    setEmailError(error);
+  }, [error]);
 
 
   const onEmailChange = useCallback(
@@ -125,6 +134,60 @@ const Login: FC<LoginProps> = ({
     }
     userActions.loginUser(email, password);
   }, [email, password]);
+
+  const sleep = (time: any) =>
+    new Promise((resolve) => setTimeout(() => resolve(), time));
+
+  // const uploadDataInBackground = async (taskDataArguments: any) => {
+  //   const { delay } = taskDataArguments;
+  //   await new Promise(async (resolve) => {
+  //     for (let i = 0; BackgroundService.isRunning(); i++) {
+  //       console.log(i);
+  //       await AsyncStorage.setItem("backtest", `${i}`);
+  //       await sleep(delay);
+  //     }
+  //   });
+  // };
+
+  // const backCheck = async () => {
+  //   const val = await AsyncStorage.getItem("backtest");
+  //   console.log("backCheck", val);
+
+  //   const options = {
+  //     taskName: "Example",
+  //     taskTitle: "ExampleTask title",
+  //     taskDesc: "ExampleTask description",
+  //     taskIcon: {
+  //       name: "ic_launcher",
+  //       type: "mipmap",
+  //     },
+  //     color: "#ff00ff",
+  //     linkingURI: "yourSchemeHere://chat/jane", // See Deep Linking for more info
+  //     parameters: {
+  //       delay: 1000,
+  //     },
+  //   };
+  //   BackgroundService.start(uploadDataInBackground, options);
+  // };
+
+//   useEffect(() => {
+//     const subscription = AppState.addEventListener("change", nextAppState => {
+//       if (
+//         appState.current.match(/inactive|background/) &&
+//         nextAppState === "active"
+//       ) {
+//         console.log("App has come to the foreground!");
+//       }
+
+//       appState.current = nextAppState;
+//       setAppStateVisible(appState.current);
+//       console.log("AppState", appState.current);
+//       if(appState.current === 'background'){
+//         // backCheck()
+//       }
+//     });
+
+//   }, []);
 
   return (
     <View style={container}>
