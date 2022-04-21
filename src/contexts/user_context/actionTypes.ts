@@ -25,7 +25,8 @@ export const initialState: UserStateProps = {
 export enum TasksActionKeys {
     setUser = 'setUser',
     setUserLoggedIn = 'setUserLoggedIn',
-    setLoading = 'setLoading'
+    setLoading = 'setLoading',
+    setError = 'setError'
 }
 
 /** **  Action Types  *** */

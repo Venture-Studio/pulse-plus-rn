@@ -79,6 +79,9 @@ const styles = StyleSheet.create({
     borderStyle: "solid",
     backgroundColor: "rgba(1,1,1,0)",
   },
+  buttonStyleDisabled: {
+    borderColor: "#F2F2F2",
+  },
 });
 
 export default styles;

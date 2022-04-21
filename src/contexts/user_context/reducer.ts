@@ -12,17 +12,18 @@ export default function TasksReducer(
   const { loading, user, token, refToken, error, isPersonaVerified } = action;
   switch (action.type) {
     case TasksActionKeys.setLoading:
-          return {
-            ...state,
-            loading: loading,
-          };
+      return {
+        ...state,
+        loading: loading,
+      };
     case TasksActionKeys.setUser:
       if (user) {
         console.log("reduser", user);
         return {
           ...state,
           user: { ...state.user, ...user, isLoggedIn: true },
-          loading:loading
+          loading: loading,
+          error: error
         };
       }
       return state;
@@ -35,7 +36,25 @@ export default function TasksReducer(
           refreshToken: refToken,
           isLoggedIn: true,
         },
-        loading:loading
+        loading: loading,
+        error: undefined
+      };
+    case TasksActionKeys.setUserLoggedIn:
+      return {
+        ...state,
+        user: {
+          ...state.user,
+          jwtToken: token,
+          refreshToken: refToken,
+          isLoggedIn: true,
+        },
+        loading: loading,
+        error: undefined
+      };
+    case TasksActionKeys.setError:
+      return {
+        ...state,
+        error: error
       };
     default:
       return state;
